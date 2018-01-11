@@ -58,7 +58,7 @@ SymbolNavWorld::SymbolNavWorld(shared_ptr<ParametersTable> _PT) :
 }
 
 inline int SymbolNavWorld::makeNumberNotBorder(int range){
-    return Random::getInt(1,range-1);
+    return Random::getInt(1,range-2);
 }
 
 void SymbolNavWorld::makeMap(){
