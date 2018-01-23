@@ -9,11 +9,12 @@
 //         github.com/Hintzelab/MABE/wiki/License
 #include "../../Brain/MarkovBrain/MarkovBrain.h"
 #include "SymbolNavWorld.h"
+#include <fstream>
 
 shared_ptr<ParameterLink<int>> SymbolNavWorld::evaluationsPerGenerationPL = Parameters::register_parameter("WORLD_SYMBOLNAV-evaluationsPerGeneration", 1, "how many times should this world be run to generate average scores/behavior");
 
-const int SymbolNavWorld::xDim=64;
-const int SymbolNavWorld::yDim=64;
+const int SymbolNavWorld::xDim=32;
+const int SymbolNavWorld::yDim=32;
 const int SymbolNavWorld::empty=0;
 const int SymbolNavWorld::wall=1;
 const int SymbolNavWorld::xm4[4]={0,1,0,-1};
@@ -39,6 +40,7 @@ Pos Pos::newPos(int X,int Y){
 shared_ptr<ParameterLink<string>> SymbolNavWorld::groupNameSpacePL = Parameters::register_parameter("WORLD_SYMBOLNAV-groupNameSpace", (string)"root::", "namespace of group to be evaluated");
 shared_ptr<ParameterLink<string>> SymbolNavWorld::brainNameSpacePL = Parameters::register_parameter("WORLD_SYMBOLNAV-brainNameSpace", (string)"root::", "namespace for parameters used to define brain");
 shared_ptr<ParameterLink<int>> SymbolNavWorld::stepsToGoalPL = Parameters::register_parameter("WORLD_SYMBOLNAV-stepsToGoal", xDim/2, "minimum steps to the goal.");
+shared_ptr<ParameterLink<bool>> SymbolNavWorld::recordFeedbackLevelsPL = Parameters::register_parameter("WORLD_SYMBOLNAV-recordFeedbackLevels", false, "cost-intensive operation to record the average feedback modification levels across the brain from all gates.");
 
 SymbolNavWorld::SymbolNavWorld(shared_ptr<ParametersTable> _PT) :
 		AbstractWorld(_PT) {
@@ -57,16 +59,16 @@ SymbolNavWorld::SymbolNavWorld(shared_ptr<ParametersTable> _PT) :
     dirMap.resize(xDim, vector<int>(yDim));
 }
 
-inline int SymbolNavWorld::makeNumberNotBorder(int range){
+inline int SymbolNavWorld::makeNumberNotBorder(int range) {
     return Random::getInt(1,range-2);
 }
 
-void SymbolNavWorld::makeMap(){
+void SymbolNavWorld::makeMap() {
     vector<Pos> current,next;
     int cDist=1;
     int i,j,k;
     startPositions.clear();
-    do{
+    do {
         cDist=1;
         for(i=0;i<xDim;i++)
             for(j=0;j<yDim;j++){
@@ -132,17 +134,34 @@ void SymbolNavWorld::evaluateSolo(shared_ptr<Organism> org, int analyse, int vis
 	
 	// create a shortcut to access the organisms brain
 	auto brain = org->brains[brainNameSpacePL->get(PT)]; 
-    org->dataMap.append("goalTimes"+to_string(currentMapID), 0);
+    //org->dataMap.append("goalTimes"+to_string(currentMapID), 0);
 
 	// evaluate this organism evaluations Per Generation times
+    allEvaluationsScore=0.;
 	for (int r = 0; r < evaluationsPerGenerationPL->get(PT); r++) {
+        ofstream stepFile;
 		brain->resetBrain(); // clear the brain (this function is defined by the brain, and will differ based on the brain being used)
-        xPos=startX;
-        yPos=startY;
+        int whichStartPosition=Random::getIndex(startPositions.size());
+        xPos=startPositions[whichStartPosition].x;
+        yPos=startPositions[whichStartPosition].y;
         dir=Random::getInt(3);
-        double fitness=0.0;
+        //double fitness=0.0;
+        oneEvaluationScore=0.;
         for(t=0; t<steps; t++) {
-            for (i=0; i<4; i++) brain->setInput(i, 1);  // set the brains input 0 to 1
+#ifdef DEBUG_STEPS
+            if (Global::update == 5) {
+                if (t == 0) {
+                    stepFile.open("steps.txt",ios::out|ios::app);
+                    for (auto& position : startPositions) stepFile << "(" << position.x << "," << position.y << ")" << endl;
+                }
+                stepFile << xPos << " " << yPos << " " << distMap[xPos][yPos] << endl;
+                if ( (t==steps-1) and (currentMapID==23) ) {
+                    stepFile.close();
+                    exit(0);
+                }
+            }
+#endif
+            for (i=0; i<4; i++) brain->setInput(i, 0);  // reset all inputs
             int before, after;
             brain->setInput((dirMap[xPos][yPos]-dir)&3,1); // read the symbol from the floor
             brain->update();
@@ -157,36 +176,70 @@ void SymbolNavWorld::evaluateSolo(shared_ptr<Organism> org, int analyse, int vis
                        }
                        break;
             }
-            fitness+=1.0/pow((double)(distMap[xPos][yPos]+1),2.0);
+            //fitness+=1.0/((distMap[xPos][yPos]+1)*(distMap[xPos][yPos]+1));
+            oneEvaluationScore+=1.0/((distMap[xPos][yPos]+1)*(distMap[xPos][yPos]+1));
             if (distMap[xPos][yPos] == 0)
             {
-                fitness+=1000.0;
+#ifdef DEBUG_STEPS
+                if (Global::update == 5) stepFile << "-1 -1 solved " << currentMapID << endl;
+#endif
+                //fitness+=1000.0;
+                oneEvaluationScore+=1000.0;
                 goalsReached++;
-                int whichStartPosition=Random::getIndex(startPositions.size());
+                whichStartPosition=Random::getIndex(startPositions.size());
                 xPos=startPositions[whichStartPosition].x;
                 yPos=startPositions[whichStartPosition].y;
                 dir=Random::getInt(3);
-                org->dataMap.append("goalTimes"+to_string(currentMapID), t);
+                //org->dataMap.append("goalTimes"+to_string(currentMapID), t);
             }
         }	
         org->dataMap.set("goalReached"+to_string(currentMapID), goalsReached);
-        shared_ptr<MarkovBrain> markovBrain = dynamic_pointer_cast<MarkovBrain>(brain);
-        if (markovBrain) {
-            if (Gate_Builder::usingFeedbackGatePL->get(PT) or Gate_Builder::usingDecomposableFeedbackGatePL->get(PT)) {
-                org->dataMap.append("PositiveFB"+to_string(currentMapID), getAppliedPosFeedback(markovBrain));
-                org->dataMap.append("NegativeFB"+to_string(currentMapID), getAppliedNegFeedback(markovBrain));
-            }
-        }
-        org->dataMap.append("score", fitness);
+        //shared_ptr<MarkovBrain> markovBrain = dynamic_pointer_cast<MarkovBrain>(brain);
+        //if (markovBrain) {
+        //    if (Gate_Builder::usingFeedbackGatePL->get(PT) or Gate_Builder::usingDecomposableFeedbackGatePL->get(PT)) {
+        //        org->dataMap.append("PositiveFB"+to_string(currentMapID), getAppliedPosFeedback(markovBrain));
+        //        org->dataMap.append("NegativeFB"+to_string(currentMapID), getAppliedNegFeedback(markovBrain));
+        //    }
+        //}
+        
+        //org->dataMap.append("score", fitness);
+        allEvaluationsScore += oneEvaluationScore;
 	}
+    allEvaluationsScore /= evaluationsPerGenerationPL->get(PT);
 }
 void SymbolNavWorld::evaluate(map<string, shared_ptr<Group>>& groups, int analyse, int visualize, int debug) {
     makeMap();
 	int popSize = groups[groupNameSpacePL->get(PT)]->population.size(); 
 	for (int i = 0; i < popSize; i++) { // for each organism, run evaluateSolo.
+        totalScore = 1.;
         for (int m = 0; m < 24; m++) {
             currentMapID=m;
             evaluateSolo(groups[groupNameSpacePL->get(PT)]->population[i], analyse, visualize, debug);
+            totalScore *= allEvaluationsScore;
+        }
+        groups[groupNameSpacePL->get(PT)]->population[i]->dataMap.append("score",totalScore/24);
+        if (recordFeedbackLevelsPL->get(PT)) {
+            if (dynamic_pointer_cast<MarkovBrain>(groups[groupNameSpacePL->get(PT)]->population[i]->brain)) {
+                auto brain = dynamic_pointer_cast<MarkovBrain>(groups[groupNameSpacePL->get(PT)]->population[i]->brain);
+                double avgPosLevelOfFB(0), avgNegLevelOfFB(0);
+                for (auto gate : brain->gates) {
+                    if (dynamic_pointer_cast<FeedbackGate>(gate)) {
+                        auto fbgate = dynamic_pointer_cast<FeedbackGate>(gate);
+                        avgPosLevelOfFB += accumulate(begin(fbgate->posLevelOfFB),end(fbgate->posLevelOfFB),0.0)/fbgate->posLevelOfFB.size();
+                        avgNegLevelOfFB += accumulate(begin(fbgate->negLevelOfFB),end(fbgate->negLevelOfFB),0.0)/fbgate->negLevelOfFB.size();
+                    } else if (dynamic_pointer_cast<DecomposableFeedbackGate>(gate)) {
+                        auto dfbgate = dynamic_pointer_cast<DecomposableFeedbackGate>(gate);
+                        avgPosLevelOfFB += accumulate(begin(dfbgate->posLevelOfFB),end(dfbgate->posLevelOfFB),0.0)/dfbgate->posLevelOfFB.size();
+                        avgNegLevelOfFB += accumulate(begin(dfbgate->negLevelOfFB),end(dfbgate->negLevelOfFB),0.0)/dfbgate->negLevelOfFB.size();
+                    }
+                }
+                if (brain->gates.size() > 0) {
+                    avgPosLevelOfFB /= brain->gates.size();
+                    avgNegLevelOfFB /= brain->gates.size();
+                }
+                groups[groupNameSpacePL->get(PT)]->population[i]->dataMap.append("meanPosLevelOfFB",avgPosLevelOfFB);
+                groups[groupNameSpacePL->get(PT)]->population[i]->dataMap.append("meanNegLevelOfFB",avgNegLevelOfFB);
+            }
         }
 	}
 }

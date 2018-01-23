@@ -30,6 +30,9 @@ public:
     static const int xm4[4];
     static const int ym4[4];
     static const int mapping[24][4];
+    double oneEvaluationScore, // accumulate score within one attempt of one mapping
+           allEvaluationsScore, // accumulate and average score across all attempts of the same mapping
+           totalScore; // accumulate score in multiobjective multiplicative for 1 individual across all mappings and the avg of all attempts
     vector<vector<int> > area;
     vector<vector<int> > distMap;
     vector<vector<int> > dirMap;
@@ -50,6 +53,7 @@ public:
 	static shared_ptr<ParameterLink<string>> groupNameSpacePL;
 	static shared_ptr<ParameterLink<string>> brainNameSpacePL;
 	static shared_ptr<ParameterLink<int>> stepsToGoalPL;
+    static shared_ptr<ParameterLink<bool>> recordFeedbackLevelsPL;
 	
 	SymbolNavWorld(shared_ptr<ParametersTable> _PT);
 	virtual ~SymbolNavWorld() = default;
@@ -58,5 +62,6 @@ public:
 	virtual void evaluate(map<string, shared_ptr<Group>>& groups, int analyse, int visualize, int debug) override;
 
 	virtual unordered_map<string, unordered_set<string>> requiredGroups() override;
+    void printTimes();
 };
 
