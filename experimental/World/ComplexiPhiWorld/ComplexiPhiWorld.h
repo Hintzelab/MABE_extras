@@ -41,7 +41,7 @@ public:
 	
     ComplexiPhiWorld (shared_ptr<ParametersTable> _PT = nullptr);
     virtual ~ComplexiPhiWorld () = default;
-	virtual void evaluateSolo(shared_ptr<Organism> org, int analyse, int visualize, int debug) override;
+	virtual void evaluateSolo(shared_ptr<Organism> org, int analyse, int visualize, int debug);
 	virtual void evaluate(map<string, shared_ptr<Group>>& groups, int analyse, int visualize, int debug) {
 		int popSize = groups[groupNamePL->get(PT)]->population.size();
 		for (int i = 0; i < popSize; i++) {
