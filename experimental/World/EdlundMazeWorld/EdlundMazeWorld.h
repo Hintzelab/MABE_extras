@@ -1,5 +1,4 @@
-/
-MABE is a product of The Hintze Lab @ MSU
+//MABE is a product of The Hintze Lab @ MSU
 //     for general research information:
 //         hintzelab.msu.edu
 //     for MABE documentation:
