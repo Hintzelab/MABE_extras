@@ -1,4 +1,5 @@
-//  MABE is a product of The Hintze Lab @ MSU
+/
+MABE is a product of The Hintze Lab @ MSU
 //     for general research information:
 //         hintzelab.msu.edu
 //     for MABE documentation:
@@ -69,7 +70,7 @@ public:
 
 	EdlundMazeWorld(shared_ptr<ParametersTable> _PT = nullptr);
 	virtual ~EdlundMazeWorld() = default;
-	virtual void evaluateSolo(shared_ptr<Organism> org, int analyse, int visualize, int debug) override;
+	virtual void evaluateSolo(shared_ptr<Organism> org, int analyse, int visualize, int debug);
 	virtual void evaluate(map<string, shared_ptr<Group>>& groups, int analyse, int visualize, int debug) {
 		int popSize = groups[groupNamePL->get(PT)]->population.size();
 		for (int i = 0; i < popSize; i++) {
@@ -81,4 +82,3 @@ public:
 		return { { groupNamePL->get(PT),{ "B:" + brainNamePL->get(PT) + ",6,2"} } }; // default requires a root group and a brain (in root namespace) and no genome
 	}
 };
-
