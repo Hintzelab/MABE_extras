@@ -1,4 +1,7 @@
 #### TPG BRAIN notes
+** there may be an issue where nodeX -> programY -> nodeX. In this case, this node is always
+safe from mutation and deletion. a check on mutate program pointer mutation should probably
+be made to insure that it is not pointing at a node that points at the program. **
 
 TPG (Tangled Program Graph) Brains are collections
 of Nodes (that point to lists of Programs), Programs (that point at one Nodes or one Atomics)
