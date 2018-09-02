@@ -1,7 +1,15 @@
-#### TPG BRAIN notes
-** there may be an issue where nodeX -> programY -> nodeX. In this case, this node is always
-safe from mutation and deletion. a check on mutate program pointer mutation should probably
-be made to insure that it is not pointing at a node that points at the program. **
+### TPG BRAIN notes
+** there may be an issue where programY -> nodeX -> programY. In this case, this node is always
+safe from mutation and deletion. a check whenever a program mutates to an existing node should
+be made to insure that it is not pointing at a node that points at the program. NOTE: the
+nodeX -> programY -> nodeX issue is addessed **
+
+** while the serialize function is written here, the deserialize function has not been. This is
+just a matter of labor required... it's a pain. The current serialization saves only elements
+needed for a given org (i.e. brain) but it would be esier if all nodes were saved. Beyond this
+makeing sure that this is working with MABE namespace would also need to be addressed (it
+might be OKay, it might not **
+
 
 TPG (Tangled Program Graph) Brains are collections
 of Nodes (that point to lists of Programs), Programs (that point at one Nodes or one Atomics)
