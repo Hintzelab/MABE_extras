@@ -9,6 +9,7 @@
 //         github.com/Hintzelab/MABE/wiki/License
 
 #include "../TPGBrain/TPGBrain.h"
+#include "../../Utilities/Utilities.h"
 
 long TPGBrain::Node::nextNodeID = 0;
 long TPGBrain::Program::nextProgramID = 0;
@@ -72,7 +73,7 @@ std::shared_ptr<AbstractBrain> TPGBrain::makeBrain(
 	auto avaliblePrograms = *rootNode->allPrograms;
 	auto avalibleNodes = *avaliblePrograms[0]->allNodes;
 	auto newRootNode = avalibleNodes[Random::getIndex(avalibleNodes.size())];
-	return std::make_shared<TPGBrain>(nrInputValues, nrOutputValues, nrHidden, newRootNode, PT);;
+	return std::make_shared<TPGBrain>(nrInputValues, nrOutputValues, nrHidden, newRootNode, PT);
 }
 
 void TPGBrain::update() {
@@ -206,33 +207,39 @@ DataMap TPGBrain::serialize(std::string &name) {
 	std::set<std::shared_ptr<Program>> savePrograms;
 	std::set<std::string> visitedElements;
 
+	dataMap.set("rootNode", std::to_string(rootNode->ID));
+
 	DetectParts(n, saveNodes, savePrograms, visitedElements);
 
 	std::stringstream ss;
+	ss << saveNodes.size() << "#"; // how many nodes?
 	for (auto n : saveNodes) {
-		ss << n->ID << "#";
+		ss << n->ID << "#" << n->programs.size() << "#"; // how many programs in this node
 		for (auto p : n->programs) {
-			ss << p->ID << ":";
+			ss << p->ID << "#";
 		}
-		ss << "|";
 	}
 	dataMap.set("nodes", ss.str());
-	ss.clear();
+	ss.str(std::string()); // clear ss
+	ss << savePrograms.size() << "#"; // how many programs
 	for (auto p : savePrograms) {
-		ss << p->ID << "#" << p->actionType << "-";
+		ss << p->ID << "#" << p->actionType << "#";
 		if (p->actionType == 0){ // atomic
-			ss << p->targetAtomic << "/" << p->targetHidden << "+";
+			//if atomic then save output value / hidden value
+			ss << p->targetAtomic << "#" << p->targetHidden << "#";
 		} else { // node
+			// if node then node id
 			ss << p->targetNode->ID << "#";
 		}
 		for (auto val : p->registerPresets) {
-			ss << val << ":";
+			// write each preset program value
+			ss << val << "#";
 		}
-		ss << "#";
+		// # to sperate preset values and instruction codes
 		for (auto val : p->instructionCodes) {
-			ss << val << ":";
+			// write each instruction code
+			ss << val << "#";
 		}
-		ss << "|";
 	}
 	dataMap.set("programs", ss.str());
 
@@ -243,19 +250,74 @@ DataMap TPGBrain::serialize(std::string &name) {
 void TPGBrain::deserialize(std::shared_ptr<ParametersTable> PT,
 	std::unordered_map<std::string, std::string> &orgData,
 	std::string &name) {
-	std::cout << name << " : ";
-	//if (name == "root::") {
-	//	name = "";
-	//}
-	std::cout << name << " : ";
-	for (auto x : orgData) {
-		std::cout << x.first << " : " << x.second << std::endl;
+/*
+// this is too much of a pain in the ass to write. it can be done
+// if needed, but at the moment, I don't see the value in it.
+// below is the begining of the code needed
+// the complexity comes from the fact that the nodes
+// and programs lists saved with each org are the nodes
+// and programs for that org. when being deserialized checks
+// must be preformed for each node and program to see if
+// they are already in allNodes or allPrograms. Also
+// nodes and programs must be correctly linked (this is
+// a pain. Perhaps a better way would be to save all
+// nodes and programs will every org. Then if !fromFile
+// would result in a read of all programs and nodes and
+// assignment of rootNode for that first brain. Thereafter
+// fromFile == true, so all that would be needed to be set
+// is the rootNode for each Brain.
+
+	if (name == "root::") {
+		name = "";
 	}
-	std::cout << orgData["nodes"] << "\n" << orgData["programs"] << std::endl << std::endl;
-	// cout << "ERROR! In AbstractBrain::deserialize(). This method has not been
-	// written for the type of brain use are using.\n  Exiting.";
-	// exit(1);
-	// do nothing... if this brain is built from genome, then nothing needs to
-	// be done.
+	std::string nodesName = name + "nodes";
+	std::string programsName = name + "programs";
+	std::vector<std::string> nodes_data;
+	convertCSVListToVector(orgData[nodesName],nodes_data,'#');
+	std::vector<std::string> programs_data;
+	convertCSVListToVector(orgData[programsName], programs_data,'#');
+
+	auto temp_allNodes = (*rootNode->allPrograms)[0]->allNodes;
+	//if this is the first brain being deserialized, reset programs and brains
+	if (!rootNode->fromFile) {
+		(*rootNode->allPrograms)[0]->allNodes->clear();
+		rootNode->allPrograms->clear();
+	}
+
+	size_t read_index = 0; // use this to read nodes and programs
+	int nCount, nID, pCount, value;
+	stringToValue(nodes_data[read_index++], nCount);
+	for (int i = 0; i < nCount; i++) {
+		// for each node
+		stringToValue(nodes_data[read_index++], nID);
+		// if node is in allNodes
+		bool new_node = true;
+		for (auto const & n : *temp_allNodes) {
+			if (n->ID == nID) {
+				new_node == false;
+			}
+		}
+		if (new_node == false) {
+			// skip to next node. first get number of programs in this node
+			stringToValue(nodes_data[read_index++], pCount);
+			// now skip that number of values
+			read_index += pCount;
+		}
+		else {
+			// this node needs to be added to temp_allNodes;
+
+		}
+	}
+
+
+
+	*/
+
+	// read out the nodes
+	
+	//std::cout << "nodes_data: " << nodes_data << std::endl;
+	//std::cout << "programs_data: " << programs_data << std::endl;
+
+	//
 }
 

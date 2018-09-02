@@ -81,14 +81,15 @@ public:
 
 	class Program {
 		// okay here we go. fast cgp...
-		// 20 values (5 actions)
+		// output of each operand is written to a register
+		// unlike normal cgp, the number of inputs is constant
+		// 4 values per action (i.e. 5 actions = 20 values)
 		// 8 registers (initally values 0 -> 1, and then point mutated)
 		// operations:
 		// 0 : +, 1 : -, 2 : *, 3 : /, 4 : sin, 5 : if, 6 : * -1, 7 : random()
 		// operands inputValues.size()+hiddenValues.size()+registers.size();
 		// output registers.size()
 		// operator, operand, operand, output, operator, operand, operand, output, ... operator, operand, operand
-		// last value generated is output.
 
 	public:
 		long ID;
@@ -200,7 +201,20 @@ public:
 						   //if (targetNode != nullptr) {
 						   //    targetNode->parentCount--;
 						   //}
-						targetNode = (*allNodes)[Random::getIndex((*allNodes).size())];
+						
+						bool goodTargetNode = false; // set this to false to get into the while loop
+						// while loop is here to make sure that we don't create a node->program->node loop
+						while (goodTargetNode == false) {
+							targetNode = (*allNodes)[Random::getIndex((*allNodes).size())];
+							// check to insure that program is not pointing at a node with this program in it's list
+							goodTargetNode = true; // assume all is good
+							for (auto const & p : targetNode->programs) {
+								if (p->actionType == 1 && p->ID == ID) {
+									// the node we just picked has this program in it's list!
+									goodTargetNode = false;
+								}
+							}
+						}
 						targetNode->parentCount++;
 					}
 					mutated = true;
@@ -266,6 +280,13 @@ public:
 	class Node {
 	public:
 		int ID;
+		bool fromFile = false; // this is used when loading populations
+							// a check will be made on the first node in
+							// allNodes when deserialize is called. If 
+							// from file is false, then allNodes and
+							// allPrograms will be cleared (of initial
+							// nodes and programs) so that they can be
+							// filled with loaded nodes and programs.
 		std::shared_ptr<std::vector<std::shared_ptr<Program>>> allPrograms;
 		std::vector<std::shared_ptr<Program>> programs;
 		std::vector<int> programOrder; // used to store program indexes ordered by their 'score'
@@ -323,6 +344,11 @@ public:
 						programs.push_back((*allPrograms)[Random::getIndex((*allPrograms).size())]);
 						programs.back()->parentCount++;
 						mutated = true;
+						//
+						//
+						// must make sure program does not point to this node
+						//
+						//
 					}
 				}
 				if (Random::P(mutateTradeProgramChance)) {
@@ -331,6 +357,11 @@ public:
 					programs[whichProgram] = (*allPrograms)[Random::getIndex((*allPrograms).size())];
 					programs[whichProgram]->parentCount++;
 					mutated = true;
+					//
+					//
+					// must make sure program does not point to this node
+					//
+					//
 				}
 				if (Random::P(mutateMutateProgramChance)) {
 					int whichProgram = Random::getIndex(programs.size());
@@ -347,6 +378,11 @@ public:
 					programs[whichProgram]->parentCount++;
 					(*allPrograms).push_back(programs[whichProgram]);
 					mutated = true;
+					//
+					//
+					// must make sure program does not point to this node
+					//
+					//
 				}
 				if (Random::P(mutateDeleteProgramChance)) {
 					if (programs.size() > minPrograms) {
@@ -357,9 +393,6 @@ public:
 						mutated = true;
 					}
 				}
-				//if (Random::P(newProgramChance)) {
-				//
-				//}
 			} // end while !mutated
 		} // end mutate()
 
@@ -377,8 +410,6 @@ public:
 
 	int nrHidden;
 	std::vector<double> hiddenValues;
-
-
 
 	TPGBrain() = delete;
 
@@ -431,7 +462,7 @@ public:
 		std::shared_ptr<ParametersTable> PT_)
 		: AbstractBrain(nrIn_, nrOut_, PT_) {
 
-		std::cout << "TPG brain 'nomal' constructor is called, but should not be called."
+		std::cout << "TPG brain 'normal' constructor is called, but should not be called."
 			"\n  perhaps this should be a deleted function." << std::endl;
 		exit(1);
 		nrHidden = nrHidden_;
