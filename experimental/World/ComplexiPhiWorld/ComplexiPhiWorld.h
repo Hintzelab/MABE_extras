@@ -50,7 +50,7 @@ public:
 	}
 	
 	virtual unordered_map<string, unordered_set<string>> requiredGroups() override {
-		return { { groupNamePL->get(PT),{ "B:" + brainNamePL->get(PT) + ",4,3"} } }; // default requires a root group and a brain (in root namespace) and no genome
+		return { { groupNamePL->get(PT),{ "B:" + brainNamePL->get(PT) + ",4,2"} } }; // default requires a root group and a brain (in root namespace) and no genome
 	}
 
 };

@@ -59,7 +59,6 @@ void ComplexiPhiWorld::evaluateSolo(shared_ptr<Organism> org, int analyse, int v
                 brain->resetBrain();
                 int botPos=k;
                 //loop the world
-					 int height(20);
 					 bool hit(false);
 					 timeToCatch = 0;
                 for(int l=0;l<34;l++){ // you only have 34 updates to figure this out
@@ -74,7 +73,7 @@ void ComplexiPhiWorld::evaluateSolo(shared_ptr<Organism> org, int analyse, int v
                         currentSensor++;
                     }
                     brain->resetOutputs();
-					brain->update();
+                    brain->update();
                     int action=Bit(brain->readOutput(0))+(Bit(brain->readOutput(1))<<1);
                     switch(action){
                         case 0:
@@ -87,53 +86,40 @@ void ComplexiPhiWorld::evaluateSolo(shared_ptr<Organism> org, int analyse, int v
                             botPos=(botPos-1)&15;
                             break;
                     }
-						  if(j==-1){
-							  world=((world>>1)&65535)+((world&1)<<15);
-						  } else {
-							  world=((world<<1)&65535)+((world>>15)&1);
-						  }
-						  //check for hit
-						  if (height == 0) { /// if block is on your same x-axis
-							  hit=false;
-							  for(int m=0;m<paddleWidth;m++)
-								  if(((world>>((botPos+m)&15))&1)==1)
-									  hit=true;
-							  if((i&1)==0){
-								  if(hit){
-									  correct++;
-									  fitness*=1.05;
-									  break;
-								  }
-							  } else {
-								  if(hit){
-									  incorrect++;
-									  fitness/=1.05;
-									  break;
-								  }
-							  }
-						  }
-						  if ((Bit(brain->readOutput(2))&1) == 1) {
-							  ++height;
-						  } else {
-							  --height;
-						  }
+                    if(j==-1){
+                        world=((world>>1)&65535)+((world&1)<<15);
+                    } else {
+                        world=((world<<1)&65535)+((world>>15)&1);
+                    }
                 }
-					 /// if time ran out and not caught the block
-					 if ((i&1)==0){
-						 if (not hit){
-							 incorrect++;
-							 fitness/=1.05;
-						 }
-					 } else {
-						 if (not hit) {
-							 correct++;
-							 fitness*=1.05;
-						 }
-					 }
+                //check for hit
+                hit=false;
+                for(int m=0;m<paddleWidth;m++)
+                    if(((world>>((botPos+m)&15))&1)==1)
+                        hit=true;
+                if((i&1)==0){
+                    if(hit){
+                        correct++;
+                        fitness*=1.05;
+                    } else {
+                        fitness/=1.05;
+                        incorrect++;
+                    }
+                } else {
+                    if(hit){
+                        incorrect++;
+                        fitness/=1.05;
+                    } else {
+                        correct++;
+                        fitness*=1.05;
+                    }
+                }
             }
         }
     }
-    org->dataMap.set("score",fitness);
+    org->dataMap.append("score",fitness);
+    org->dataMap.append("correct", correct);
+    org->dataMap.append("incorrect", incorrect);
 }
 
 
